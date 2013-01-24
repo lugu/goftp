@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"errors"
+	"time"
 )
 
 type EntryType int
@@ -26,8 +27,17 @@ type ServerConn struct {
 
 type Entry struct {
 	Name string
+	date string
 	Type EntryType
 	Size uint64
+}
+
+func (e *Entry) Date() (time.Time, error) {
+    date, err := time.Parse("Jan _2 15:04 2006", e.date + fmt.Sprintf("%d", time.Now().Year()))
+    if time.Now().Before(date) {
+        return time.Parse("Jan _2 15:04 2006", e.date + fmt.Sprintf("%d", time.Now().Year()-1))
+    }
+    return date, err
 }
 
 type response struct {
@@ -155,6 +165,7 @@ func parseListLine(line string) (*Entry, error) {
 	}
 
 	e.Name = strings.Join(fields[8:], " ")
+    e.date = line[strings.Index(line, fields[5]):strings.Index(line, fields[8])]
 	return e, nil
 }
 
@@ -186,6 +197,18 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 // Changes the current directory to the specified path.
 func (c *ServerConn) ChangeDir(path string) error {
 	_, _, err := c.cmd(StatusRequestedFileActionOK, "CWD %s", path)
+	return err
+}
+
+// Changes the file transfer mode to binary
+func (c *ServerConn) Binary() error {
+	_, _, err := c.cmd(StatusRequestedFileActionOK, "TYPE I")
+	return err
+}
+
+// Changes the file transfer mode to binary
+func (c *ServerConn) Ascii() error {
+	_, _, err := c.cmd(StatusRequestedFileActionOK, "TYPE A")
 	return err
 }
 
